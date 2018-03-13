@@ -1,45 +1,33 @@
 package com.mylibrary
 
-import junit.framework.TestCase
-import junit.framework.TestCase.*
+import junit.framework.TestCase.assertEquals
 import org.junit.Test
 
 class AppTest {
 
-    class Book {
-        val title: String
-
-        constructor(title: String) {
-            this.title = title
-        }
-
-
-
-        fun getPrice(): Double {
-            return 8.0
-        }
-
+    data class Book(val title: String, val price:Double = 8.0, val discounts:List<Double> = emptyList()){
+        fun addDiscount(discount:Double): Book = copy(discounts=discounts.plus(discount))
+        fun effectifPrice() : Double = discounts.fold(price,{acc,discount -> acc * (1 - discount / 100)})
 
     }
 
-    class Basket {
+    data class Basket(val books: List<Book> = emptyList()) {
 
-        private val books : MutableList<AppTest.Book> = ArrayList()
-
-        fun getPrice():Double {
-            val groupBy: Map<String, List<Book>> = books
-                    .groupBy(Book::title)
-
-            val discount : Double = when(groupBy.size) {
-                in 0..1 -> 0.0
-                   2 ->5.0
-                else -> 0.0
-            }
-            return books.stream().mapToDouble(Book::getPrice).sum() * (1- discount/100)
+        fun getPrice():Double  =  when(differentBooksCount) {
+            2 ->computeDiscount(5.0)
+            3 ->computeDiscount(10.0)
+            else -> computeDiscount(0.0)
         }
-        fun add(book: AppTest.Book) {
-            books.add(book)
-        }
+
+
+        private fun computeDiscount(discount: Double) = books.map(Book::price).sum() * (1 - discount / 100)
+
+        val differentBooksCount = books
+                .groupBy(Book::title)
+                .size
+
+        fun add(book: AppTest.Book) =  Basket(books.plus(book))
+
 
 
     }
@@ -47,10 +35,7 @@ class AppTest {
     @Test
     fun should_buy_one_book() {
         val basket = Basket()
-        basket.add(Book("un book pas cool"))
-        val result = basket.getPrice()
-
-        assertEquals(result, 8.0)
+        assertEquals(basket.add(Book("un book pas cool")).getPrice(), 8.0)
     }
 
     @Test
@@ -63,10 +48,25 @@ class AppTest {
     @Test
     fun buy_two_different_books_should_apply_five_percent_discount() {
         val basket = Basket()
-        basket.add(Book("book1"))
-        basket.add(Book("book2"))
+        val loadedBasket = basket.add(Book("book1")).add(Book("book2"))
 
-        assertEquals(basket.getPrice(), 15.2)
+        assertEquals(loadedBasket.getPrice(), 15.2)
+    }
+
+    @Test
+    fun buy_three_different_books_should_apply_ten_percent_discount() {
+        val loadedBasket = Basket().add(Book("book1")).add(Book("book2")).add(Book("book3"))
+
+        assertEquals(loadedBasket.getPrice(), 21.6)
+    }
+
+    @Test
+    fun buy_three_different_books_and_one_identical_should_apply_ten_percent_discount() {
+        val loadedBasket = Basket().add(Book("book1"))
+                .add(Book("book2"))
+                .add(Book("book3"))
+                .add(Book("book3"))
+
+        assertEquals(loadedBasket.getPrice(), 29.6)
     }
 }
-
